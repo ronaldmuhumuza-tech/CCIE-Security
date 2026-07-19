@@ -1,0 +1,37 @@
+# ===========================
+# Private keys (NEVER commit)
+# ===========================
+*.key
+
+# Certificate signing requests (generated)
+*.csr
+
+# OpenSSL serial/database files
+*.srl
+index.txt
+index.txt.attr
+index.txt.old
+serial
+serial.old
+
+# Certificate Revocation Lists
+*.crl
+
+# Private key directories
+private/
+
+# Temporary and backup files
+*.bak
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Python cache (future-proof)
+__pycache__/
+*.pyc
