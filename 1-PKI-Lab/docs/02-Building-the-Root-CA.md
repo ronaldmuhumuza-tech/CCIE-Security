@@ -194,3 +194,11 @@ This layered approach reduces operational risk while preserving the integrity of
 - The Root private key is the most sensitive asset in the PKI.
 - OpenSSL's directory structure mirrors the operational requirements of a production Certificate Authority.
 - Enterprise PKI separates the Root CA from issuing CAs to minimise risk and protect the trust anchor.
+
+## Further Reading
+
+- UK National Cyber Security Centre (NCSC) – Provisioning and Managing Certificates in the Web PKI
+  https://www.ncsc.gov.uk/guidance/provisioning-and-managing-certificates-in-the-web-pki
+
+- AWS Private Certificate Authority – CA Hierarchy
+  https://docs.aws.amazon.com/privateca/latest/userguide/ca-hierarchy.html
