@@ -1,92 +1,196 @@
-# 01 – PKI Fundamentals
+# 02 – Building the Root Certificate Authority (Root CA)
 
 ## Objective
 
-Understand the core principles behind Public Key Infrastructure (PKI) before configuring Certificate Authorities (CAs), certificates, or OpenSSL. The goal is to understand *why* PKI exists and how it establishes trust in enterprise networks.
-
-## What is PKI?
-
-Public Key Infrastructure (PKI) is the framework used to establish trust between users, devices and applications. It combines cryptographic algorithms, digital certificates, Certificate Authorities (CAs) and operational processes to verify identity and protect communications.
-
-PKI is used extensively across enterprise environments, including:
-
-- HTTPS websites
-- SSL/TLS VPNs
-- 802.1X network authentication
-- Secure Shell (SSH)
-- Wi-Fi authentication
-- Email signing and encryption
-- Code signing
-
-PKI does not encrypt traffic by itself. Its primary purpose is to establish trusted identities and securely exchange cryptographic keys.
+Build a secure Root Certificate Authority (CA) using OpenSSL and understand why it forms the trust anchor of an enterprise Public Key Infrastructure (PKI).
 
 
-## Symmetric vs Asymmetric Cryptography
+## Why a Root CA?
 
-Cryptography falls into two broad categories.
+Every PKI begins with a Root Certificate Authority (Root CA). It is the highest level of trust within the hierarchy and is responsible for issuing and signing certificates for subordinate Certificate Authorities (CAs).
 
-| Symmetric Cryptography | Asymmetric Cryptography |
-|------------------------|-------------------------|
-| Uses a single shared key | Uses a public/private key pair |
-| Fast | Computationally more expensive |
-| Best suited for encrypting data | Best suited for identity, authentication and key exchange |
+Unlike other certificates, the Root CA is **self-signed** because there is no higher authority available to verify its identity.
 
-In production networks, both are used together. Asymmetric cryptography establishes trust and exchanges keys, while symmetric cryptography performs the bulk of the encryption because it is significantly faster.
+The Root CA establishes the foundation of trust for every certificate issued within the enterprise/organisation. If the Root CA is trusted, every certificate issued beneath it can also be trusted through the certificate chain.
 
 
-## Public and Private Keys
+## Enterprise Architecture
 
-A key pair consists of:
+A production PKI typically follows a hierarchical design.
 
-- A **private key**, which must remain secret.
-- A **public key**, which can be shared freely.
+<p align="center">
+  <img src="../diagrams/pki-hierarchy-design.png" alt="Enterprise PKI Hierarchy" width="900">
+</p>
 
-The two keys are mathematically related, but it is computationally infeasible to derive the private key from the public key.
+<p align="center">
+  <em>Figure 1 – Typical enterprise PKI hierarchy showing the Root CA, Intermediate CA and issued certificates.</em>
+</p>
 
-The private key is the most valuable asset in a PKI. If it is compromised, the identity associated with that key is also compromised.
-
-
-## Digital Signatures
-
-A digital signature provides:
-
-- Authentication - confirms who signed the data.
-- Integrity - confirms the data has not been tampered with or modified in transmission.
-- Non-repudiation (verifiable proof of origin) - the signer cannot credibly dny creating the signature.
-
-Rather than signing the entire document, a hash of the document is signed using the private key. Anyone with the corresponding public key can verify the signature and confirm that the data has not been altered.
+Keeping the Root CA offline significantly reduces the risk of compromise. Day-to-day certificate issuance is performed by one or more Intermediate CAs, allowing the Root CA's private key to remain securely protected.
 
 
-## Hash Functions
+## Creating the PKI Directory Structure
 
-A cryptographic hash function converts data of any size into a fixed-length digest.
+OpenSSL requires a directory structure to store keys, certificates and Certificate Authority (CA) metadata.
 
-Common examples include:
+```bash
+mkdir -p ~/PKI/{private,certs,csr,newcerts,crl}
 
-- SHA-256
-- SHA-384
-- SHA-512
+touch ~/PKI/index.txt
 
-A secure hash function exhibits the avalanche effect (a small change in the input produces a completely different hash output).
+echo 1000 > ~/PKI/serial
+```
 
-Hashing provides integrity, not confidentiality.
+Each component has a specific purpose.
+
+| Directory/File | Purpose |
+|---------------|---------|
+| private | Stores private keys. Access should be tightly restricted. |
+| certs | Stores issued certificates. |
+| csr | Stores Certificate Signing Requests (CSRs). |
+| newcerts | Stores certificates issued by the CA. |
+| crl | Stores Certificate Revocation Lists (CRLs). |
+| index.txt | Database of issued certificates. |
+| serial | Tracks the next certificate serial number. |
+
+This structure reflects how a production Certificate Authority maintains issued certificates and their associated metadata.
 
 
-## PKI and the CIA Triad
+## Generating the Root Private Key
 
-PKI supports two of the three core security principles defined by the CIA Triad:
+The Root CA private key is the most sensitive asset within the PKI. If compromised, every certificate issued by the Root CA becomes untrustworthy.
 
-- **Confidentiality** – achieved by enabling secure key exchange and encryption, ensuring that only authorised parties can access sensitive information.
-- **Integrity** – achieved through cryptographic hash functions and digital signatures, allowing recipients to detect unauthorised changes to data.
+For my lab, a **4096-bit RSA** key will be used to provide long-term security while maintaining broad compatibility with enterprise systems.
 
-**Availability** is not a direct function of PKI. It is achieved through resilient system design, redundancy, backups, high availability (HA), and disaster recovery (DR). However, a poorly designed or unavailable PKI can prevent users and systems from authenticating, indirectly affecting service availability.
+```bash
+openssl genpkey \
+    -algorithm RSA \
+    -pkeyopt rsa_keygen_bits:4096 \
+    -out ~/PKI/private/rootca01.key
+```
+
+Restrict access to the private key.
+
+```bash
+chmod 600 ~/PKI/private/rootca01.key
+```
+Linux permissions are often represented as three digits: 6:Owner -> Read + Write; 0:Group -> No access; 0:Group -> No access
+
+## Verifying the Private Key
+
+The private key can be inspected to confirm that it was generated correctly.
+
+```bash
+openssl pkey \
+    -in ~/PKI/private/rootca01.key \
+    -text \
+    -noout
+```
+`pkey`:works with private keys; `-in`:specified the input file; `-text`:displays the decoded mathematical components in a readable form; `-noout`:prevents OpenSSL from outputting the Base64-encoded PEM block again.
+
+> **PEM (Privacy-Enhanced Mail)** is a Base64-encoded format used to store certificates, private keys and Certificate Signing Requests (CSRs). It is identified by headers such as:
+>
+> `-----BEGIN CERTIFICATE-----`
+>
+> and
+>
+> `-----END CERTIFICATE-----`
+
+The output confirms the key length, public modulus and other RSA parameters that make up the private key.
+
+
+## Creating the OpenSSL Configuration File
+
+Rather than relying on OpenSSL defaults, an explicit configuration file defines the certificate subject and X.509 extensions.
+
+Using configuration files improves consistency and produces certificates that more closely resemble those deployed in enterprise environments.
+
+The Root CA configuration defines:
+
+- Distinguished Name (DN)
+- Hash algorithm
+- Key Usage
+- Basic Constraints
+- Subject Key Identifier
+- Authority Key Identifier
+
+
+## Generating the Root Certificate
+
+The Root CA certificate is created by signing its own public key using its private key.
+
+```bash
+openssl req \
+    -new \
+    -x509 \
+    -config ~/PKI/openssl-root.cnf \
+    -key ~/PKI/private/rootca01.key \
+    -sha256 \
+    -days 7300 \
+    -set_serial 0x1000 \
+    -out ~/PKI/certs/rootca01.crt
+```
+
+Unlike server certificates, the Root CA certificate does not require a Certificate Signing Request (CSR) because there is no higher Certificate Authority available to sign it.
+
+
+## Verifying the Root Certificate
+
+Inspect the certificate to confirm that the required fields and extensions have been applied.
+
+```bash
+openssl x509 \
+    -in ~/PKI/certs/rootca01.crt \
+    -text \
+    -noout
+```
+ `x509`:Invokes the OpenSSL utility for reading, inspecting and managing X.509 certificates.
+ `-text`:Displays the certificate contents in a human-readable format, including the certificate fields, public key, extensions and signature information.
+
+Verify the following:
+
+- Version 3 certificate
+- SHA-256 signature algorithm
+- Issuer and Subject are identical
+- 4096-bit RSA public key
+- Basic Constraints show **CA:TRUE**
+- Key Usage includes **Certificate Sign** and **CRL Sign**
+
+These extensions identify the certificate as a Certificate Authority capable of issuing certificates.
+
+
+## Verifying Trust
+
+Since the Root CA is self-signed, it can be used to verify its own certificate.
+
+```bash
+openssl verify \
+    -CAfile ~/PKI/certs/rootca01.crt \
+    ~/PKI/certs/rootca01.crt
+```
+
+A successful verification confirms that the certificate is internally consistent and that the signature matches the associated public key.
+
+
+## Enterprise Considerations
+
+Enterprise PKI deployments rarely use the Root CA for issuing certificates directly. Instead, the Root CA signs one or more Intermediate CAs, which perform routine certificate issuance.
+
+Common enterprise practices include:
+
+- Keeping the Root CA offline except when signing subordinate CAs.
+- Protecting the Root private key using a Hardware Security Module (HSM).
+- Distributing the Root certificate to trusted devices.
+- Issuing certificates through Intermediate CAs rather than the Root CA.
+- Using long validity periods for Root CA certificates due to their limited operational use.
+
+This layered approach reduces operational risk while preserving the integrity of the PKI.
 
 
 ## Key Takeaways
 
-- PKI establishes trust, not encryption.
-- Private keys must always remain protected.
-- Public keys are intended to be distributed.
-- Digital signatures provide authentication, integrity and non-repudiation.
-- Modern enterprise security combines asymmetric cryptography for identity and key exchange with symmetric cryptography for efficient data encryption.
-- PKI primarily supports **Confidentiality** and **Integrity** within the CIA Triad. **Availability** depends on resilient PKI design and infrastructure rather than cryptography itself.
+- The Root CA is the trust anchor of the PKI.
+- Root CAs are self-signed because no higher Certificate Authority exists.
+- The Root private key is the most sensitive asset in the PKI.
+- OpenSSL's directory structure mirrors the operational requirements of a production Certificate Authority.
+- Enterprise PKI separates the Root CA from issuing CAs to minimise risk and protect the trust anchor.
