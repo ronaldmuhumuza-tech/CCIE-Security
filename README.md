@@ -1,4 +1,4 @@
-# CCIE Security Lab
+# CCIE Security Labbing
 
 This repository documents my hands-on journey towards developing enterprise infrastructure, networking and security engineering skills for CCIE Security level.
 
