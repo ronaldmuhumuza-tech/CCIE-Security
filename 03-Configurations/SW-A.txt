@@ -1,0 +1,78 @@
+=====================================================
+Device      : SW-A
+OS          : Ubuntu 24.04 LTS
+Role        : Site A Access Switch
+Management  : 192.168.10.2
+Last Update : 2026-07-23
+=====================================================
+
+
+enable
+configure terminal
+
+hostname SW-A
+no ip domain-lookup
+
+vlan 10
+ name MANAGEMENT
+ exit
+
+interface GigabitEthernet0/0
+ description LINK-TO-FW-A-INSIDE
+ switchport mode access
+ switchport access vlan 10
+ spanning-tree portfast
+ no shutdown
+ exit
+
+interface GigabitEthernet0/1
+ description ROOTCA01
+ switchport mode access
+ switchport access vlan 10
+ spanning-tree portfast
+ no shutdown
+ exit
+
+interface GigabitEthernet0/2
+ description WIN11
+ switchport mode access
+ switchport access vlan 10
+ spanning-tree portfast
+ no shutdown
+ exit
+
+interface GigabitEthernet0/3
+ description ICA01
+ switchport mode access
+ switchport access vlan 10
+ spanning-tree portfast
+ no shutdown
+ exit
+
+interface Vlan10
+ description SITE-A-MANAGEMENT
+ ip address 192.168.10.2 255.255.255.0
+ no shutdown
+ exit
+
+ip default-gateway 192.168.10.1
+
+end
+copy running-config startup-config
+
+
+Verification
+
+
+show ip interface brief
+show interfaces status
+show vlan brief
+show mac address-table dynamic
+show spanning-tree vlan 10
+
+Connectivity:
+
+ping 192.168.10.1
+ping 192.168.10.10
+ping 192.168.10.11
+ping 192.168.10.20

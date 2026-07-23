@@ -15,7 +15,17 @@ serial
 serial.old
 
 # Certificate Revocation Lists
-*.crl
+
+*.key
+*.pem
+*.p12
+*.pfx
+private/
+crl/
+newcerts/
+index.txt*
+serial*
+crlnumber*
 
 # Private key directories
 private/

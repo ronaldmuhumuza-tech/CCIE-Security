@@ -1,0 +1,66 @@
+=====================================================
+Device      : WIN11
+OS          : Windows 11
+Role        : Administrator Workstation / Security Test Client
+Management  : 192.168.10.20
+Last Update : 2026-07-23
+=====================================================
+
+Configure using PowerShell
+
+First identify the adapter:
+
+Get-NetAdapter
+
+Typical name is "Ethernet":
+
+Get-NetIPAddress -InterfaceAlias "Ethernet" -AddressFamily IPv4 |
+    Remove-NetIPAddress -Confirm:$false
+
+Remove any existing default route if necessary:
+
+Get-NetRoute -InterfaceAlias "Ethernet" -AddressFamily IPv4 |
+    Where-Object DestinationPrefix -eq "0.0.0.0/0" |
+    Remove-NetRoute -Confirm:$false
+
+Apply the static address:
+
+New-NetIPAddress `
+    -InterfaceAlias "Ethernet" `
+    -IPAddress 192.168.10.20 `
+    -PrefixLength 24 `
+    -DefaultGateway 192.168.10.1
+
+Configure DNS:
+
+Set-DnsClientServerAddress `
+    -InterfaceAlias "Ethernet" `
+    -ServerAddresses 1.1.1.1,8.8.8.8
+
+Rename the computer:
+
+Rename-Computer -NewName "WIN11" -Restart
+
+
+Verify after restart
+
+hostname
+ipconfig /all
+Get-NetIPAddress -AddressFamily IPv4
+Get-NetRoute -AddressFamily IPv4
+Get-DnsClientServerAddress -AddressFamily IPv4
+
+
+Connectivity:
+
+ping 192.168.10.1
+ping 192.168.10.2
+ping 192.168.10.10
+ping 192.168.10.11
+ping 172.16.12.1
+ping 8.8.8.8
+ping google.com
+
+
+
+

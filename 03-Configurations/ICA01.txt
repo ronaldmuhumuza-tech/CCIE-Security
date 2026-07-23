@@ -1,0 +1,121 @@
+=====================================================
+Device      : ICA01
+OS          : Ubuntu 24.04 LTS
+Role        : Online Issuing Certificate Authority
+Management  : 192.168.10.11
+Last Update : 2026-07-23
+=====================================================
+
+Hostname:
+
+sudo hostnamectl set-hostname ica01
+sudo reboot
+
+Verify:
+
+hostname
+hostnamectl
+
+
+Netplan Edit:
+
+sudo nano /etc/netplan/50-cloud-init.yaml
+
+network:
+  version: 2
+  ethernets:
+    ens3:
+      dhcp4: false
+      addresses:
+        - 192.168.10.11/24
+      routes:
+        - to: default
+          via: 192.168.10.1
+      nameservers:
+        search:
+          - cciesec.lab
+        addresses:
+          - 1.1.1.1
+          - 8.8.8.8
+
+
+Apply:
+
+sudo netplan generate
+sudo netplan try
+sudo netplan apply
+
+
+Verify:
+
+ip -br address
+ip route
+resolvectl status
+
+
+Local hosts file
+
+sudo nano /etc/hosts
+
+127.0.0.1       localhost
+127.0.1.1       ica01.cciesec.lab ica01
+
+192.168.10.1    fw-a.cciesec.lab fw-a
+192.168.10.2    sw-a.cciesec.lab sw-a
+192.168.10.10   rootca01.cciesec.lab rootca01
+192.168.10.11   ica01.cciesec.lab ica01
+192.168.10.20   win11.cciesec.lab win11
+
+Timezone and packages
+
+sudo timedatectl set-timezone Europe/London
+sudo timedatectl set-ntp true
+
+sudo apt update
+sudo apt install -y \
+  openssl \
+  openssh-server \
+  chrony \
+  tree \
+  curl \
+  wget \
+  vim
+
+
+Enable services:
+
+sudo systemctl enable --now ssh
+sudo systemctl enable --now chrony
+
+
+Verify:
+
+timedatectl
+chronyc tracking
+systemctl status ssh --no-pager
+openssl version
+
+
+Connectivity:
+
+ping -c 4 192.168.10.1
+ping -c 4 192.168.10.2
+ping -c 4 192.168.10.10
+ping -c 4 172.16.12.1
+ping -c 10 8.8.8.8
+ping -c 4 google.com
+
+From ICA01 or ROOTCA01
+
+ping -c 4 192.168.10.1
+ping -c 4 192.168.10.2
+ping -c 4 172.16.12.1
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+
+
+
+
+
+
+

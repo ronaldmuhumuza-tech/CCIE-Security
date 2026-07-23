@@ -1,0 +1,60 @@
+=====================================================
+Device      : ISP-R1
+OS          : IOSv Version 15.9(3)
+Role        : ISP / WAN Router
+Management  : 172.16.12.1
+Last Update : 2026-07-23
+=====================================================
+
+enable
+configure terminal
+
+hostname ISP-R1
+no ip domain-lookup
+
+interface GigabitEthernet0/0
+ description LINK-TO-FW-A-OUTSIDE
+ ip address 172.16.12.1 255.255.255.252
+ ip nat inside
+ no shutdown
+ exit
+
+interface GigabitEthernet0/1
+ description RESERVED-FOR-FW-B
+ shutdown
+ exit
+
+interface GigabitEthernet0/2
+ description LINK-TO-PNETLAB-CLOUD0
+ ip address dhcp
+ ip nat outside
+ no shutdown
+ exit
+
+ip access-list standard NAT-FROM-FW-A
+ permit 172.16.12.0 0.0.0.3
+ exit
+
+ip nat inside source list NAT-FROM-FW-A interface GigabitEthernet0/2 overload
+
+ip route 0.0.0.0 0.0.0.0 dhcp
+
+end
+copy running-config startup-config
+
+
+Verification:
+
+show ip interface brief
+show ip route
+show access-lists
+show ip nat statistics
+show ip nat translations
+show dhcp lease
+
+ping 172.16.12.2
+ping 192.168.204.1
+ping 8.8.8.8
+
+
+

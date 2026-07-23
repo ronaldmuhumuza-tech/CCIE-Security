@@ -1,0 +1,85 @@
+=====================================================
+Device      : FW-A
+Platform    : Cisco ASAv 9.20(3)
+Role        : Perimeter Firewall
+Site        : Site A Firewall
+Management  : 192.168.10.1
+Last Update : 2026-07-23
+=====================================================
+
+enable
+configure terminal
+
+hostname FW-A
+
+interface GigabitEthernet0/0
+ description TO-ISP-R1
+ nameif outside
+ security-level 0
+ ip address 172.16.12.2 255.255.255.252
+ no shutdown
+ exit
+
+interface GigabitEthernet0/1
+ description TO-SW-A-VLAN-10
+ nameif inside
+ security-level 100
+ ip address 192.168.10.1 255.255.255.0
+ no shutdown
+ exit
+
+interface GigabitEthernet0/2
+ shutdown
+ no nameif
+ no security-level
+ no ip address
+ exit
+
+route outside 0.0.0.0 0.0.0.0 172.16.12.1 1
+
+
+PAT configuration
+
+object network INSIDE-NET
+ subnet 192.168.10.0 255.255.255.0
+ nat (inside,outside) dynamic interface
+
+
+
+ICMP inspection
+
+policy-map global_policy
+ class inspection_default
+  inspect icmp
+ exit
+exit
+
+service-policy global_policy global
+
+Verify before making changes:
+
+show running-config policy-map
+show service-policy
+
+end
+write memory
+
+Verification:
+
+show interface ip brief
+show route
+show running-config nat
+show xlate
+show conn
+show running-config policy-map
+show service-policy
+
+
+ping 172.16.12.1
+ping 8.8.8.8
+
+
+
+
+
+
